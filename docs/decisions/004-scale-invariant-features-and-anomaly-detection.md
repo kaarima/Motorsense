@@ -58,15 +58,56 @@ Freeze this as the first MCU implementation target. It is a compact anomaly scor
 | Bearing orders | BPFI 5.4152, BPFO 3.5848, BSF 4.7135, FTF 0.39828 times shaft frequency |
 | Feature count | 10: kurtosis, crest factor; four first-three-harmonic band-energy / total-envelope-energy ratios; four fundamental peak-to-neighbor amplitude ratios in dB |
 | Spectrum bands | ±2 Hz around each of the first three fault harmonics; total-energy denominator from 0–500 Hz; neighbor bands ±2 Hz around offsets of ±6 Hz |
-| MCU transform target | 8,192-point float32 CMSIS-DSP real FFT, zero-padding each 6,000-sample window; 1.465 Hz bin spacing. The Python reference uses a 6,000-point FFT (2 Hz bins), so firmware parity and baseline recalibration are required before deployment. |
+| MCU transform target | 8,192-point Q15 CMSIS-DSP real FFT, zero-padding each 6,000-sample window; 1.465 Hz bin spacing. The Python reference uses a 6,000-point float FFT (2 Hz bins), so Q15 parity and baseline recalibration are required before deployment. |
 | Model | Per-motor robust healthy baseline: 10 feature medians + 10 MAD-derived scales; score `sqrt(mean(((x - median) / scale)^2))`; flag when score exceeds the 95th-percentile healthy calibration threshold |
 | Model storage / scoring | 21 float32 values (84 bytes) for centers, scales, and threshold; O(10) feature normalizations and square-sum operations per window |
 
 Feature-vector order is fixed as: `kurtosis`, `crest_factor`, `bpfi_energy_ratio`, `bpfo_energy_ratio`, `bsf_energy_ratio`, `ftf_energy_ratio`, `bpfi_peak_neighbor_db`, `bpfo_peak_neighbor_db`, `bsf_peak_neighbor_db`, `ftf_peak_neighbor_db`. The MAD scale is `max(1.4826 * MAD, 1e-8 * max(1, abs(median)))` for each feature. The total-energy denominator sums bins above DC through 500 Hz; each ratio numerator sums the first three harmonic bands.
 
-The reference analytic envelope uses a Hilbert transform plus an envelope spectrum. The MCU estimate is one forward/inverse analytic-signal transform pair plus one envelope-spectrum real FFT per window, each targeting 8,192 points. The STM32 implementation must map those steps to CMSIS-DSP, preserve the 2.5–3.5 kHz filter and feature definitions, and compare Python/C feature values on identical inputs. An 8,192-point transform size is supported by CMSIS-DSP's real-FFT API; the STM32G474 family has 128 KB SRAM. RAM use, cycles per half-second window, and detection latency still need measurement on the board/target. The 95th-percentile threshold and per-motor centers/scales should be generated from healthy commissioning data and stored with the device configuration; commissioning duration and drift handling remain open engineering parameters.
+The Python reference uses a Hilbert analytic envelope plus an envelope spectrum. To bound MCU memory, the selected port target uses a 63-tap Q15 quadrature FIR for the Hilbert component and one Q15 envelope-spectrum RFFT per window. That FIR choice must be checked against the Python envelope on identical inputs. The 95th-percentile threshold and per-motor centers/scales should be generated from healthy commissioning data and stored with device configuration; commissioning duration and drift handling remain open engineering parameters.
 
 The fault-type secondary model remains the Decision 003 absolute-feature random forest baseline: RMS, kurtosis, crest factor, and four log envelope energies (7 features). It is not part of this first frozen MCU anomaly path because its 0.021-inch fault-size recording balanced accuracy was 0.750 and it cannot flag fault types absent from training.
+
+### FFT implementation comparison
+
+The float and fixed-point candidates are not interchangeable one-for-one: CMSIS-DSP's fast float32 real FFT supports sizes through 4096; the Q15 real FFT supports 8192. The Q15 transform scales its output by a size-dependent amount to avoid overflow (13 bits for 8192), which cancels in the energy and peak ratios but still needs quantization checks. Buffer figures below are transform source plus destination only; they omit the acquisition staging, envelope/filter state, model state, and stack.
+
+| FFT path | CMSIS-DSP support on Cortex-M | Input span at 12 kHz | Bin spacing | FFT source + destination RAM | Main tradeoff |
+|---|---|---:|---:|---:|---|
+| float32, 4096 RFFT | Supported (`arm_rfft_fast_f32`) | 4,096 samples = 0.341 s | 2.93 Hz | 32 KiB (N float source + N float destination) | M4F FPU and simpler scaling; shorter observation and coarse bins make the current ±2 Hz feature bands unreliable. |
+| Q15, 4096 RFFT | Supported (`arm_rfft_q15`) | 4,096 samples = 0.341 s | 2.93 Hz | 24.0 KiB (N Q15 source + (2N+2) Q15 destination) | Smallest footprint, but same lost span and frequency-bin limitation. |
+| float32, 8192 RFFT | Not supported by CMSIS-DSP fast float RFFT | 6,000 samples fit with zero padding | 1.465 Hz | Not applicable | Would need a custom/complex path and extra workspace; reject for this spec. |
+| **Q15, 8192 RFFT** | **Supported (`arm_rfft_q15`)** | **6,000 samples = 0.5 s, padded by 2,192 zeros** | **1.465 Hz** | **48.0 KiB (8,192 Q15 source + 16,386 Q15 destination values)** | **Selected. Preserves the whole reference window and gives a denser grid for evaluating the current fault bands; requires Q15 scaling/quantization parity tests.** |
+
+At 12 kHz, a 4096-point transform only covers 0.341 seconds. Using the full half-second window would require another design (for example, a new 8 kHz envelope-rate path), with new filtering, features, and training. The 8192-point zero-padded FFT has 1.465 Hz *bin spacing*; zero padding does not create new information beyond the 0.5-second observation. For equal lengths, FFT operation count grows approximately with N log2(N), so 8192 costs about 2.17× a 4096 transform. Q15 can use Cortex-M DSP instructions, while the STM32G474 also has a single-precision FPU; actual Q15-vs-float cycle speed is not assumed and must be measured.
+
+### Initial resource budget
+
+The MCU target is STM32G474xE (512 KiB Flash, 128 KiB SRAM in the family datasheet). The figures are a planning budget, not a linker-map or board measurement. Q15 RFFT uses an in-place-modified source and a full-spectrum destination; CMSIS-DSP lists no separate RFFT scratch buffer for the Cortex-M scalar/DSP path. The transform tables and Hann coefficients reside in Flash.
+
+| SRAM item | Budget | Basis |
+|---|---:|---|
+| Q15 FFT source / capture window | 16.0 KiB | 8,192 `q15_t`; same buffer receives 6,000 samples then zero padding |
+| Q15 RFFT output | 32.0 KiB | (2N+2) `q15_t` for the CMSIS-DSP Cortex-M output format |
+| DMA staging | 0.5 KiB | 256 Q15 samples; source buffer is filled incrementally |
+| Bandpass + quadrature FIR state | 1.0 KiB | Delay state, coefficients copied to RAM only if needed, temporary envelope values; reuse source after demodulation |
+| Feature and score working state | 0.25 KiB | 10 features plus float32 baseline parameters/temporary score |
+| Main/interrupt stack allocation | 8.0 KiB | Require measured high-water ≤6.0 KiB, retaining ≥2.0 KiB stack margin |
+| Other application/driver `.data` + `.bss` allowance | 32.0 KiB | Planning allowance for sampling, CAN, UART, and state; verify from map |
+| **Estimated allocated total** | **89.8 KiB** | Leaves about 38.2 KiB from 128 KiB |
+| Reserved SRAM headroom | 32.0 KiB | 25% of total SRAM; current estimate leaves about 6.2 KiB beyond this reserve |
+
+The chosen Q15 FFT constants are approximately 51.9 KiB in Flash before code: two 8,192-entry Q15 real-FFT coefficient tables (32 KiB), the 4,096-point Q15 complex twiddle table (12 KiB), and its 4,032-entry uint16 bit-reversal table (7.9 KiB). A 6,000-entry Q15 Hann table adds about 11.7 KiB; 63 Hilbert coefficients, filter coefficients, and the 84-byte anomaly baseline add under 0.3 KiB. Thus the planned constant-data total is about **63.8 KiB**, plus retained CMSIS-DSP routine and application code. Link only the selected FFT tables/routines and verify actual `.text`/`.rodata` in the linker map; the exact STM32 order code must be confirmed before claiming the 512 KiB maximum.
+
+| Per-window CPU budget | Initial target |
+|---|---:|
+| Q15 63-tap quadrature FIR | ≤378,000 MACs (6,000 × 63, unoptimized upper count) |
+| 2.5–3.5 kHz bandpass | About 120,000 multiplies for four biquad sections × 6,000 samples × 5 multiplies; verify section realization |
+| Envelope spectrum | One 8,192-point Q15 real FFT plus windowing and ≤~350 bins of energy reduction (0–500 Hz) |
+| Feature and anomaly score | 10 features; 10 robust normalizations, square/sum, and one square root |
+| End-to-end budget | Finish DSP ≤17 million cycles (100 ms at 170 MHz, 20% of a 0.5 s window); no cycle measurement exists yet |
+
+Use the 100 ms target as an acceptance ceiling, not a measured result. The Q15 transform output scale and fixed-point filter headroom must be handled explicitly. The first firmware validation should compare all 10 feature values and anomaly decisions against Python, measure DWT cycles, inspect linker SRAM/Flash totals, and confirm stack high-water while CAN and sampling interrupts run. If Q15 quantization changes decisions, the fallback is not silently assumed: widen/revisit feature bands or train/calibrate against the selected fixed-point implementation before deployment.
 
 ## Decision
 
@@ -84,7 +125,10 @@ A real installation must collect a representative healthy baseline for that part
 
 ## Firmware references
 
-- [CMSIS-DSP real FFT API and supported sizes](https://arm-software.github.io/CMSIS-DSP/v1.14.2/group__RealFFT.html)
+- [CMSIS-DSP float32 real FFT API and supported sizes](https://arm-software.github.io/CMSIS-DSP/main/group__RealFFTF32.html)
+- [CMSIS-DSP Q15 real FFT API, supported sizes, and output scaling](https://arm-software.github.io/CMSIS-DSP/latest/group__RealFFTQ15.html)
+- [CMSIS-DSP transform buffer sizes](https://arm-software.github.io/CMSIS-DSP/main/transformbuffers.html)
+- [CMSIS-DSP FFT coefficient tables](https://arm-software.github.io/CMSIS-DSP/main/group__RealFFT__Table.html)
 - [STM32G474 datasheet](https://www.st.com/resource/en/datasheet/stm32g474ve.pdf)
 
 ## Reproduction
