@@ -13,9 +13,11 @@ Rough pace: part-time, ~16 weeks.
 
 ## Phase 1 — Signals & ML basics (weeks 1–4) · Python
 - [x] Load CWRU data, plot raw vibration (healthy vs faulty)
-- [ ] FFT + windowing; see fault frequencies
+- [x] FFT + windowing; compare shaft harmonics to verify the 97.mat sample rate
+- [ ] Identify bearing fault frequencies (BPFI, BPFO, BSF, FTF) from RPM + bearing geometry
 - [ ] Envelope analysis for bearing faults
-- [ ] Features: RMS, peak, crest factor, kurtosis, band energies
+- [x] Features: RMS, peak, crest factor, kurtosis
+- [ ] Band energies
 - [ ] First classifier (thresholds / decision tree / isolation forest)
 - [ ] Write results in `docs/decisions/` (which features work and why)
 
