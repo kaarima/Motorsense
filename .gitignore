@@ -1,0 +1,19 @@
+# Build
+build/
+*.o
+*.elf
+*.bin
+*.hex
+*.map
+
+# Python
+__pycache__/
+.venv/
+.ipynb_checkpoints/
+ml/data/*
+!ml/data/.gitkeep
+
+# KiCad backups
+*-backups/
+*.kicad_prl
+fp-info-cache
