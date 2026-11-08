@@ -59,12 +59,19 @@ Freeze this as the first MCU implementation target. It is a compact anomaly scor
 | Feature count | 10: kurtosis, crest factor; four first-three-harmonic band-energy / total-envelope-energy ratios; four fundamental peak-to-neighbor amplitude ratios in dB |
 | Spectrum bands | ±2 Hz around each of the first three fault harmonics; total-energy denominator from 0–500 Hz; neighbor bands ±2 Hz around offsets of ±6 Hz |
 | MCU transform target | 8,192-point Q15 CMSIS-DSP real FFT, zero-padding each 6,000-sample window; 1.465 Hz bin spacing. The Python reference uses a 6,000-point float FFT (2 Hz bins), so Q15 parity and baseline recalibration are required before deployment. |
+| Numeric formats | Only the envelope-spectrum FFT is Q15. Compute time-domain kurtosis and crest factor in float32 using the STM32G474 Cortex-M4F FPU; convert Q15 FFT outputs to float32 for band ratios and peak-to-neighbor features. |
 | Model | Per-motor robust healthy baseline: 10 feature medians + 10 MAD-derived scales; score `sqrt(mean(((x - median) / scale)^2))`; flag when score exceeds the 95th-percentile healthy calibration threshold |
 | Model storage / scoring | 21 float32 values (84 bytes) for centers, scales, and threshold; O(10) feature normalizations and square-sum operations per window |
 
 Feature-vector order is fixed as: `kurtosis`, `crest_factor`, `bpfi_energy_ratio`, `bpfo_energy_ratio`, `bsf_energy_ratio`, `ftf_energy_ratio`, `bpfi_peak_neighbor_db`, `bpfo_peak_neighbor_db`, `bsf_peak_neighbor_db`, `ftf_peak_neighbor_db`. The MAD scale is `max(1.4826 * MAD, 1e-8 * max(1, abs(median)))` for each feature. The total-energy denominator sums bins above DC through 500 Hz; each ratio numerator sums the first three harmonic bands.
 
-The Python reference uses a Hilbert analytic envelope plus an envelope spectrum. To bound MCU memory, the selected port target uses a 63-tap Q15 quadrature FIR for the Hilbert component and one Q15 envelope-spectrum RFFT per window. That FIR choice must be checked against the Python envelope on identical inputs. The 95th-percentile threshold and per-motor centers/scales should be generated from healthy commissioning data and stored with device configuration; commissioning duration and drift handling remain open engineering parameters.
+The Python reference uses a Hilbert analytic envelope plus an envelope spectrum. To bound MCU memory, the selected port target uses a 63-tap Q15 quadrature FIR for the Hilbert component and one Q15 envelope-spectrum RFFT per window. That FIR choice must be checked against the Python envelope on identical inputs. Keep kurtosis and crest factor in float32; Q15 applies only to the FFT transform. Convert FFT spectral values to float32 before computing normalized features and the anomaly score.
+
+### Parity-test acceptance criterion
+
+Run firmware parity tests on real 0.5-second CWRU windows from the normal and fault recordings, comparing the MCU Q15 envelope band-energy ratios against the current float64 Python reference computed from the same samples, shaft speed, filter band, and feature bands. For each of the four ratios, require `abs(q15 - float64) <= max(1e-4, 0.05 * abs(float64))` (5% relative error with a `1e-4` absolute floor). Include weak-ratio healthy windows as well as clear fault windows, and report worst-case error per ratio. The test is a release gate for the C port; it has not yet been implemented or passed. The separate 63-tap envelope approximation also needs its own waveform/feature parity check before acceptance.
+
+The 95th-percentile threshold and per-motor centers/scales should be generated from healthy commissioning data and stored with device configuration; commissioning duration and drift handling remain open engineering parameters.
 
 The fault-type secondary model remains the Decision 003 absolute-feature random forest baseline: RMS, kurtosis, crest factor, and four log envelope energies (7 features). It is not part of this first frozen MCU anomaly path because its 0.021-inch fault-size recording balanced accuracy was 0.750 and it cannot flag fault types absent from training.
 
