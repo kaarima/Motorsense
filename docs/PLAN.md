@@ -21,6 +21,7 @@ Rough pace: part-time, ~16 weeks.
 - [x] First classifier with a load-held-out test set
 - [x] Write results in `docs/decisions/` (which features work and why)
 - [x] Compare scale-invariant fault features and per-motor healthy-baseline anomaly detection
+- [x] Freeze Phase 1 anomaly features and model as the initial firmware spec
 
 ## Phase 2 — Bare-metal firmware in Renode (weeks 1–6)
 - [ ] Linker script, startup code, vector table

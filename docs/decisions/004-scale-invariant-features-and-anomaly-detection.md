@@ -32,7 +32,9 @@ Balanced accuracy is shown at both the segment and recording levels. Recording r
 
 The scale-invariant classifier is substantially worse on this four-class task. Removing RMS and absolute spectral levels discards class-separating information in this dataset; the ratios as currently defined do not recover it.
 
-The healthy-baseline detector reached **0.846 window balanced accuracy** and **0.861 recording balanced accuracy** across the same load folds. At the window level it correctly flagged 267/360 fault windows (74.2% sensitivity) and raised 2/40 false alarms on healthy windows (95.0% specificity). At the recording level it flagged 26/36 fault recordings and all 4/4 healthy recordings. The small number of independent healthy recordings makes the specificity estimate especially uncertain.
+The healthy-baseline detector reached **0.857 window balanced accuracy** and **0.861 recording balanced accuracy** across the same load folds. With its reserved-window protocol, it flagged 266/360 fault windows (73.9% sensitivity) and 1/40 held-out-load healthy windows (2.5% false alarms; 97.5% specificity). At the recording level it flagged 26/36 fault recordings and all 4/4 healthy recordings.
+
+To estimate false alarms without fitting or calibrating on the evaluated healthy samples, each training healthy recording contributes even-indexed windows to the baseline and threshold calibration. Its odd-indexed windows are reserved for false-alarm evaluation. The full healthy recording at the held-out load is also evaluated. Across the four folds this gives 40 distinct selected healthy windows; 1 was flagged (2.5%). The 20 reserved within-recording windows are each scored in three different fold contexts (60 decisions total); none was flagged in any context (0/20 unique windows ever flagged). These are overlapping CWRU windows from only four normal recordings, so the point estimate is coarse and not a product false-alarm guarantee.
 
 ### Held-out 0.021-inch fault size
 
@@ -40,9 +42,31 @@ The healthy-baseline detector reached **0.846 window balanced accuracy** and **0
 |---|---:|---:|
 | Absolute classifier (random forest) | 0.558 / 0.558 | 0.750 / 0.750 |
 | Scale-invariant classifier (logistic regression) | 0.425 / 0.425 | 0.417 / 0.417 |
-| Healthy-baseline anomaly detector | 0.833 sensitivity | 0.833 sensitivity |
+| Healthy-baseline anomaly detector | 0.875 sensitivity | 0.917 sensitivity |
 
-The absolute classifier correctly identified 9/12 fault recordings; the scale-invariant classifier correctly identified 5/12. The baseline detector flagged 10/12 fault recordings. Because there are no healthy examples in this size holdout, the detector's false-alarm rate on this split is unknown.
+The absolute classifier correctly identified 9/12 fault recordings; the scale-invariant classifier correctly identified 5/12. With the reserved-window healthy-baseline protocol, the detector flagged 11/12 fault recordings. Because there are no healthy examples in this size holdout, the detector's false-alarm rate on this split is unknown.
+
+## Phase 1 firmware spec freeze
+
+Freeze this as the first MCU implementation target. It is a compact anomaly scorer; fault-type classification remains an offline/secondary diagnostic for now.
+
+| Item | Frozen target |
+|---|---|
+| Input | 12 kHz vibration, shaft frequency in Hz supplied by configuration or a speed source |
+| Window | 6,000 samples (0.5 s), non-overlapping, Hann window for envelope spectrum |
+| Carrier band | 2.5–3.5 kHz bandpass before envelope extraction |
+| Bearing orders | BPFI 5.4152, BPFO 3.5848, BSF 4.7135, FTF 0.39828 times shaft frequency |
+| Feature count | 10: kurtosis, crest factor; four first-three-harmonic band-energy / total-envelope-energy ratios; four fundamental peak-to-neighbor amplitude ratios in dB |
+| Spectrum bands | ±2 Hz around each of the first three fault harmonics; total-energy denominator from 0–500 Hz; neighbor bands ±2 Hz around offsets of ±6 Hz |
+| MCU transform target | 8,192-point float32 CMSIS-DSP real FFT, zero-padding each 6,000-sample window; 1.465 Hz bin spacing. The Python reference uses a 6,000-point FFT (2 Hz bins), so firmware parity and baseline recalibration are required before deployment. |
+| Model | Per-motor robust healthy baseline: 10 feature medians + 10 MAD-derived scales; score `sqrt(mean(((x - median) / scale)^2))`; flag when score exceeds the 95th-percentile healthy calibration threshold |
+| Model storage / scoring | 21 float32 values (84 bytes) for centers, scales, and threshold; O(10) feature normalizations and square-sum operations per window |
+
+Feature-vector order is fixed as: `kurtosis`, `crest_factor`, `bpfi_energy_ratio`, `bpfo_energy_ratio`, `bsf_energy_ratio`, `ftf_energy_ratio`, `bpfi_peak_neighbor_db`, `bpfo_peak_neighbor_db`, `bsf_peak_neighbor_db`, `ftf_peak_neighbor_db`. The MAD scale is `max(1.4826 * MAD, 1e-8 * max(1, abs(median)))` for each feature. The total-energy denominator sums bins above DC through 500 Hz; each ratio numerator sums the first three harmonic bands.
+
+The reference analytic envelope uses a Hilbert transform plus an envelope spectrum. The MCU estimate is one forward/inverse analytic-signal transform pair plus one envelope-spectrum real FFT per window, each targeting 8,192 points. The STM32 implementation must map those steps to CMSIS-DSP, preserve the 2.5–3.5 kHz filter and feature definitions, and compare Python/C feature values on identical inputs. An 8,192-point transform size is supported by CMSIS-DSP's real-FFT API; the STM32G474 family has 128 KB SRAM. RAM use, cycles per half-second window, and detection latency still need measurement on the board/target. The 95th-percentile threshold and per-motor centers/scales should be generated from healthy commissioning data and stored with the device configuration; commissioning duration and drift handling remain open engineering parameters.
+
+The fault-type secondary model remains the Decision 003 absolute-feature random forest baseline: RMS, kurtosis, crest factor, and four log envelope energies (7 features). It is not part of this first frozen MCU anomaly path because its 0.021-inch fault-size recording balanced accuracy was 0.750 and it cannot flag fault types absent from training.
 
 ## Decision
 
@@ -57,6 +81,11 @@ A real installation must collect a representative healthy baseline for that part
 - An anomaly detector learns a description of normal data and asks “does this look unusual?” It can flag an unseen fault type, but by itself cannot name the fault.
 - Median absolute deviation gives a robust feature scale. Leave-one-recording-out calibration prevents the threshold calibration score for a healthy recording from being computed by a baseline that already fitted that recording.
 - Window-level measurements from one file are correlated. Recording-level results are the more meaningful independent-unit comparison here.
+
+## Firmware references
+
+- [CMSIS-DSP real FFT API and supported sizes](https://arm-software.github.io/CMSIS-DSP/v1.14.2/group__RealFFT.html)
+- [STM32G474 datasheet](https://www.st.com/resource/en/datasheet/stm32g474ve.pdf)
 
 ## Reproduction
 
