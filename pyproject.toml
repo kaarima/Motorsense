@@ -20,3 +20,4 @@ select = ["E", "F", "I", "B", "UP", "N"]
 [tool.pytest.ini_options]
 testpaths = ["ml/tests"]
 pythonpath = ["ml/src"]
+addopts = "-p no:launch_testing -p no:launch_ros"
