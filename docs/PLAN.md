@@ -17,9 +17,9 @@ Rough pace: part-time, ~16 weeks.
 - [x] Identify bearing fault frequencies from RPM + bearing geometry
 - [x] Envelope analysis for bearing faults
 - [x] Features: RMS, peak, crest factor, kurtosis
-- [ ] Band energies
-- [ ] First classifier (thresholds / decision tree / isolation forest)
-- [ ] Write results in `docs/decisions/` (which features work and why)
+- [x] Band energies around drive-end bearing defect orders in the envelope spectrum
+- [x] First classifier with a load-held-out test set
+- [x] Write results in `docs/decisions/` (which features work and why)
 
 ## Phase 2 — Bare-metal firmware in Renode (weeks 1–6)
 - [ ] Linker script, startup code, vector table

@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from motorsense_ml.features import crest_factor, kurtosis, peak, rms
+from motorsense_ml.features import crest_factor, envelope_band_energies, kurtosis, peak, rms
 
 
 def test_rms_of_sine_is_amplitude_over_sqrt2():
@@ -35,3 +35,21 @@ def test_zero_signal_is_safe():
     assert rms(z) == 0.0
     assert crest_factor(z) == 0.0
     assert kurtosis(z) == 0.0
+
+
+def test_envelope_band_energies_detect_modulation_at_fault_order():
+    fs = 12_000
+    shaft_hz = 30.0
+    fault_hz = 5.4152 * shaft_hz
+    time = np.arange(fs * 2) / fs
+    signal = (1 + 0.8 * np.cos(2 * np.pi * fault_hz * time)) * np.cos(2 * np.pi * 3_000 * time)
+
+    energies = envelope_band_energies(signal, fs, shaft_hz)
+
+    assert energies.shape == (4,)
+    assert energies[0] > energies[1] + 1
+
+
+def test_envelope_band_energies_reject_invalid_rotational_parameters():
+    with pytest.raises(ValueError, match="shaft_hz"):
+        envelope_band_energies(np.ones(12_000), 12_000, 0)
