@@ -10,6 +10,7 @@ build/
 __pycache__/
 .venv/
 .ipynb_checkpoints/
+*.egg-info/
 ml/data/*
 !ml/data/.gitkeep
 
