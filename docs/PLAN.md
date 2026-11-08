@@ -9,10 +9,10 @@ Rough pace: part-time, ~16 weeks.
 - [ ] Create GitHub repo, push this skeleton
 - [ ] Install: arm-none-eabi-gcc, CMake, OpenOCD/GDB, Renode, KiCad, Python (numpy, scipy, matplotlib, scikit-learn)
 - [ ] Download STM32G474 reference manual (RM0440) + datasheet
-- [ ] Download CWRU bearing dataset
+- [x] Download CWRU bearing dataset
 
 ## Phase 1 — Signals & ML basics (weeks 1–4) · Python
-- [ ] Load CWRU data, plot raw vibration (healthy vs faulty)
+- [x] Load CWRU data, plot raw vibration (healthy vs faulty)
 - [ ] FFT + windowing; see fault frequencies
 - [ ] Envelope analysis for bearing faults
 - [ ] Features: RMS, peak, crest factor, kurtosis, band energies
