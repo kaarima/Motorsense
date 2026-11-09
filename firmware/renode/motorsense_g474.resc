@@ -1,0 +1,4 @@
+mach create "MotorSenseSTM32G474"
+machine LoadPlatformDescription @firmware/renode/motorsense_g474.repl
+sysbus LoadELF @build/firmware/motorsense.elf
+start

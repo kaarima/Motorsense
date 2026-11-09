@@ -24,6 +24,7 @@ Rough pace: part-time, ~16 weeks.
 - [x] Freeze Phase 1 anomaly features and model as the initial firmware spec
 
 ## Phase 2 — Bare-metal firmware in Renode (weeks 1–6)
+Current slice: standalone STM32G474 boot, GPIOA/PA5 blink using SysTick, and a Renode LED smoke test on `fw/bare-metal-boot`.
 - [ ] Linker script, startup code, vector table
 - [ ] Blink a GPIO in Renode (via registers only)
 - [ ] Clock: PLL to 170 MHz, flash wait states, SysTick
