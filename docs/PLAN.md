@@ -1,13 +1,17 @@
 # MotorSense — Project Plan
 
-Tracks run in parallel: **ML (Python)**, **Firmware (Renode)**, **Hardware (KiCad)**.
-Rough pace: part-time, ~16 weeks.
+Tracks run in parallel: **ML (Python)**, **Firmware and digital twin (Renode)**, **Hardware design and analog simulation (KiCad/ngspice)**.
+Rough pace: part-time, ~16 weeks. No physical hardware is required for the initial project acceptance.
+
+## Initial end-to-end acceptance
+
+Replay CWRU vibration through a Renode IIS3DWB-over-SPI model, run the bare-metal acquisition and frozen anomaly detector, send health over Renode CAN, and display it in the PC viewer. Verify analog and power circuits with SPICE and deliver a fab-ready KiCad design with clean ERC/DRC. A NUCLEO-G474RE hardware run is optional future work.
 
 ---
 
 ## Phase 0 — Setup (week 1)
 - [ ] Create GitHub repo, push this skeleton
-- [ ] Install: arm-none-eabi-gcc, CMake, OpenOCD/GDB, Renode, KiCad, Python (numpy, scipy, matplotlib, scikit-learn)
+- [ ] Install: arm-none-eabi-gcc, CMake, Renode, KiCad/ngspice, Python (numpy, scipy, matplotlib, scikit-learn); OpenOCD/GDB is optional for later hardware work
 - [ ] Download STM32G474 reference manual (RM0440) + datasheet
 - [x] Download CWRU bearing dataset
 
@@ -31,10 +35,10 @@ Current slice: standalone STM32G474 boot, GPIOA/PA5 blink using SysTick, and a R
 - [ ] UART: interrupt-driven, ring buffer, printf
 - [ ] HardFault handler that dumps registers
 - [ ] Timer-triggered sampling + DMA double buffer
-- [ ] SPI driver; virtual accelerometer in Renode fed with CWRU data
+- [ ] SPI driver; Renode IIS3DWB model fed with CWRU data
 - [ ] Robot Framework test in Renode + GitHub Actions CI
 
-## Phase 3 — Schematic (weeks 3–8) · KiCad
+## Phase 3 — Schematic and analog simulation (weeks 3–8) · KiCad/ngspice
 - [ ] Block diagram + power budget
 - [ ] MCU core: decoupling, HSE crystal, NRST, BOOT0, SWD
 - [ ] Power: 12–24 V input, protection, buck → 3.3 V
@@ -42,11 +46,12 @@ Current slice: standalone STM32G474 boot, GPIOA/PA5 blink using SysTick, and a R
 - [ ] CAN-FD transceiver + termination; USB-C
 - [ ] SPICE: buck behavior, current-sense amp, anti-aliasing filter
 - [ ] ERC clean; schematic PDF exported
+Scope: schematic and SPICE verification only; stop at design and simulation.
 
-## Phase 4 — DSP + ML on the MCU (weeks 7–11)
+## Phase 4 — DSP + anomaly detection on the MCU (weeks 7–11)
 - [ ] Port features to C with CMSIS-DSP
 - [ ] Check C results match Python (same input → same numbers)
-- [ ] Quantize model to int8; deploy (TFLite Micro or ST Edge AI)
+- [ ] Store per-motor robust healthy baseline (feature medians, scales, threshold) and score on-device
 - [ ] Measure RAM, flash, inference time
 - [ ] Health state output: healthy / warning / fault
 
@@ -55,17 +60,19 @@ Current slice: standalone STM32G474 boot, GPIOA/PA5 blink using SysTick, and a R
 - [ ] DRC clean; 3D render
 - [ ] BOM with real part numbers; Gerbers generated
 - [ ] Design review (r/PrintedCircuitBoard + Claude); log fixes in `hardware/docs/`
+Deliverable: fab-ready KiCad project. Fabrication and physical bring-up are outside the current scope.
 
-## Phase 6 — Communication & dashboard (weeks 11–14)
+## Phase 6 — Renode CAN & PC viewer (weeks 11–14)
 - [ ] CAN protocol: message IDs, health frames, config frames
-- [ ] (Optional) Modbus RTU
-- [ ] Dashboard: live health + spectrum plot
+- [ ] Renode CAN model/bridge sends health and spectrum data to the PC viewer
+- [ ] PC viewer reads Renode CAN and displays live health + spectrum
+- [ ] Robot/host integration test covers CWRU replay through to viewer-visible health output
 
-## Phase 7 — Security & polish (weeks 14–16)
-- [ ] Secure boot + signed firmware updates (MCUboot)
+## Phase 7 — Virtual demo & polish (weeks 14–16)
 - [ ] README: block diagram, renders, plots, results
-- [ ] Demo video: Renode run → fault detected → dashboard alert
+- [ ] Demo video: CWRU replay in Renode → fault detected → PC viewer alert
 - [ ] LinkedIn post + add to CV
+- [ ] Optional follow-up: run the hardware-ready firmware on a NUCLEO-G474RE
 
 ---
 

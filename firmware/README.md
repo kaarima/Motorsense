@@ -1,6 +1,6 @@
 # Bare-metal boot slice
 
-This Phase 2 slice builds a standalone STM32G474 image with register-only startup and GPIO code.
+This Phase 2 slice builds a standalone STM32G474 image with register-only startup and GPIO code. The initial project verification path is virtual; a NUCLEO-G474RE is an optional later target.
 
 ## Configure and build
 
@@ -22,4 +22,4 @@ renode --console -e 'include @firmware/renode/motorsense_g474.resc'
 renode-test firmware/renode/tests/gpio_blink.robot
 ```
 
-The smoke test observes the PA5 LED output as the firmware configures GPIOA and toggles it from a 1 ms SysTick. PA5 is LD2 on NUCLEO-G474RE; the custom MotorSense board can select another pin when its schematic is defined. The Renode platform is intentionally a boot-test digital twin, not a complete STM32G4 model.
+The smoke test observes the PA5 output as the firmware configures GPIOA and toggles it from a 1 ms SysTick. PA5 is a convenient virtual GPIO for this boot test. Later, the digital twin will model the IIS3DWB over SPI, replay CWRU data, and carry health messages over Renode CAN to the PC viewer. The Renode platform is intentionally a boot-test digital twin, not a complete STM32G4 model.

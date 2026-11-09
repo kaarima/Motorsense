@@ -19,4 +19,4 @@ Use a project-owned C vector table and reset handler. The reset handler enables 
 
 ## Boot smoke-test choice
 
-The first demonstration uses the reset MSI clock (4 MHz), a 1 ms SysTick, and PA5 as the GPIO output. PA5 matches LD2 on the NUCLEO-G474RE, while remaining an explicit board choice that can be changed for the custom MotorSense PCB. Renode uses a minimal platform description for the Cortex-M4, memories, RCC address window, and STM32 GPIO model so the register-level firmware is exercised without claiming full STM32G4 peripheral coverage.
+The first demonstration uses the reset MSI clock (4 MHz), a 1 ms SysTick, and PA5 as a virtual GPIO output. The initial acceptance path uses Renode for the MCU and sensor/CAN peripherals, SPICE for analog and power circuits, and KiCad ERC/DRC for the board design. A NUCLEO-G474RE may be added as an optional hardware milestone later. The current Renode platform is a minimal boot-test model, not full STM32G4 peripheral coverage.
