@@ -1,20 +1,14 @@
 *** Settings ***
 Suite Setup       Setup
 Suite Teardown    Teardown
-Library           RenodeLibrary
+Resource          /opt/renode/tests/renode-keywords.robot
 
 *** Test Cases ***
 GPIO LED toggles under SysTick control
-    Execute Command       machine LoadPlatformDescription @firmware/renode/motorsense_g474.repl
-    Execute Command       sysbus LoadELF @build/firmware/motorsense.elf
-    Create LED Tester     sysbus.gpioPortA.led defaultTimeout=2
+    Execute Command          mach create
+    Execute Command          machine LoadPlatformDescription @${CURDIR}/../motorsense_g474.repl
+    Execute Command          sysbus LoadELF @${CURDIR}/../../../build/firmware/motorsense.elf
+    Create LED Tester        sysbus.gpioPortA.led  defaultTimeout=2
     Start Emulation
-    Wait For LED On
-    Wait For LED Off
-
-*** Keywords ***
-Setup
-    Execute Command    mach create
-
-Teardown
-    Execute Command    pause
+    Assert LED State         true   pauseEmulation=true
+    Assert LED State         false  pauseEmulation=true

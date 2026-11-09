@@ -1,4 +1,4 @@
-# Minimal STM32G474 digital twin for reset, SysTick, and GPIO smoke tests.
+// Minimal STM32G474 digital twin for reset, SysTick, and GPIO smoke tests.
 nvic: IRQControllers.NVIC @ sysbus 0xE000E000
     systickFrequency: 4000000
     IRQ -> cpu@0
