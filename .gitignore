@@ -5,6 +5,11 @@ build/
 *.bin
 *.hex
 *.map
+robot_output.xml
+log.html
+report.html
+logs/
+snapshots/
 
 # Python
 __pycache__/
