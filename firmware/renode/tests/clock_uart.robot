@@ -32,6 +32,16 @@ HardFault prints the stacked and fault status registers
     Wait For Line On Uart          ${status_registers}     treatAsRegex=true
     Wait For Line On Uart          ${address_registers}    treatAsRegex=true
 
+IIS3DWB CWRU window RMS matches the Python reference without drops
+    Create Machine And Load ELF    motorsense.elf
+    Create Terminal Tester         sysbus.lpuart1
+    ${expected_rms}=    Get File    ${CURDIR}/../../../build/cwru_iis3dwb_rms.txt
+    ${expected_rms}=    Strip String    ${expected_rms}
+    Start Emulation
+    Wait For Line On Uart          IIS3DWB WHO_AM_I=0x7B ODR=26667
+    # Both paths report hundredths of a count (<=0.01 count error).
+    Wait For Line On Uart          VIBRATION samples=6000 rms=${expected_rms} counts dropped=0
+
 *** Keywords ***
 Create Machine And Load ELF
     [Arguments]    ${elf}

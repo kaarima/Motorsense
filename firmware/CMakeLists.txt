@@ -1,6 +1,8 @@
 set(FIRMWARE_SOURCES
     app/main.c
     drivers/clock.c
+    drivers/iis3dwb.c
+    drivers/spi.c
     drivers/uart.c
     startup/startup.c
 )
@@ -49,6 +51,7 @@ function(add_firmware_image target_name output_name)
         -Wl,-Map=${CMAKE_CURRENT_BINARY_DIR}/${output_name}.map
         -T${CMAKE_CURRENT_SOURCE_DIR}/linker/stm32g474.ld
     )
+    target_link_libraries(${target_name} PRIVATE m)
 
     set_target_properties(${target_name} PROPERTIES
         OUTPUT_NAME ${output_name}

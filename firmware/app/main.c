@@ -1,6 +1,8 @@
 #include "clock.h"
+#include "iis3dwb.h"
 #include "uart.h"
 
+#include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 
@@ -67,6 +69,27 @@ int main(void)
 #if defined(MOTORSENSE_TEST_HARDFAULT)
     __asm volatile("udf #0");
 #endif
+
+    if (iis3dwb_init() == 0U) {
+        (void)printf("IIS3DWB WHO_AM_I check failed\n");
+        uart_flush();
+        for (;;) {
+            __asm volatile("wfi");
+        }
+    }
+    (void)printf("IIS3DWB WHO_AM_I=0x%02X ODR=26667\n", 0x7BU);
+    uart_flush();
+
+    float rms_counts;
+    uint32_t sample_count;
+    uint32_t dropped_windows;
+    if (iis3dwb_capture_window(&rms_counts, &sample_count, &dropped_windows) != 0U) {
+        const uint32_t rms_hundredths = (uint32_t)(rms_counts * 100.0F + 0.5F);
+        (void)printf("VIBRATION samples=%lu rms=%lu.%02lu counts dropped=%lu\n",
+                     (unsigned long)sample_count, (unsigned long)(rms_hundredths / 100U),
+                     (unsigned long)(rms_hundredths % 100U), (unsigned long)dropped_windows);
+        uart_flush();
+    }
 
     uint32_t led_is_on = 0U;
     for (;;) {

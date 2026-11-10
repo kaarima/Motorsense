@@ -34,6 +34,12 @@ lpuart1: UART.STM32F7_USART @ sysbus <0x40008000, +0x400>
     lowPowerMode: true
     IRQ -> nvic@91
 
+// Emulate the G4 SPI2 register window and the sensor FIFO from ignored CWRU data.
+spi2: Python.PythonPeripheral @ sysbus 0x40003800
+    size: 0x400
+    initable: true
+    filename: "/workspace/firmware/renode/iis3dwb.py"
+
 gpioPortA: GPIOPort.STM32_GPIOPort @ sysbus <0x48000000, +0x400>
     modeResetValue: 0xFFFFFFFF
     numberOfAFs: 16
