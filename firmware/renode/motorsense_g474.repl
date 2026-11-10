@@ -1,6 +1,6 @@
-// Minimal STM32G474 digital twin for reset, SysTick, and GPIO smoke tests.
+// Minimal STM32G474 digital twin for boot, SysTick, UART, and GPIO tests.
 nvic: IRQControllers.NVIC @ sysbus 0xE000E000
-    systickFrequency: 4000000
+    systickFrequency: 170000000
     IRQ -> cpu@0
 
 cpu: CPU.CortexM @ sysbus
@@ -16,11 +16,27 @@ sram: Memory.MappedMemory @ sysbus 0x20000000
 ccmram: Memory.MappedMemory @ sysbus 0x10000000
     size: 0x8000
 
-rcc: Memory.MappedMemory @ sysbus 0x40021000
+rtc: Timers.STM32F4_RTC @ sysbus 0x40002800
+
+// Renode 1.15.3 has no STM32G4 RCC model; this model supplies shared CR/CFGR
+// ready and switch-status behavior for the PLL boot test.
+rcc: Miscellaneous.STM32F4_RCC @ sysbus 0x40021000
+    rtcPeripheral: rtc
+
+pwr: Memory.MappedMemory @ sysbus 0x40007000
     size: 0x1000
+
+flashControl: Memory.MappedMemory @ sysbus 0x40022000
+    size: 0x1000
+
+lpuart1: UART.STM32F7_USART @ sysbus <0x40008000, +0x400>
+    frequency: 170000000
+    lowPowerMode: true
+    IRQ -> nvic@91
 
 gpioPortA: GPIOPort.STM32_GPIOPort @ sysbus <0x48000000, +0x400>
     modeResetValue: 0xFFFFFFFF
+    numberOfAFs: 16
 
 led: Miscellaneous.LED @ gpioPortA
 

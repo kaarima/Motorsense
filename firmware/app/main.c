@@ -1,4 +1,10 @@
+#include "clock.h"
+#include "uart.h"
+
 #include <stdint.h>
+#include <stdio.h>
+
+#include "fw_version.h"
 
 #define RCC_AHB2ENR (*(volatile uint32_t *)0x4002104CUL)
 #define GPIOA_MODER (*(volatile uint32_t *)0x48000000UL)
@@ -8,8 +14,7 @@
 #define SYST_CVR (*(volatile uint32_t *)0xE000E018UL)
 
 #define LED_PIN 5U
-#define MSI_RESET_HZ 4000000U
-#define SYSTICK_RELOAD (MSI_RESET_HZ / 1000U - 1U)
+#define SYSTICK_RELOAD (MOTORSENSE_SYSCLK_HZ / 1000UL - 1UL)
 
 static volatile uint32_t tick_ms;
 
@@ -28,11 +33,10 @@ static void systick_init(void)
 
 static void gpio_init(void)
 {
-    RCC_AHB2ENR |= 1U;
+    RCC_AHB2ENR |= 1UL;
     (void)RCC_AHB2ENR;
-
-    GPIOA_MODER = (GPIOA_MODER & ~(3U << (LED_PIN * 2U))) | (1U << (LED_PIN * 2U));
-    GPIOA_BSRR = 1U << (LED_PIN + 16U);
+    GPIOA_MODER = (GPIOA_MODER & ~(3UL << (LED_PIN * 2U))) | (1UL << (LED_PIN * 2U));
+    GPIOA_BSRR = 1UL << (LED_PIN + 16U);
 }
 
 static void delay_ms(uint32_t delay)
@@ -45,13 +49,29 @@ static void delay_ms(uint32_t delay)
 
 int main(void)
 {
-    gpio_init();
+    if (clock_init() == 0U) {
+        for (;;) {
+            __asm volatile("wfi");
+        }
+    }
+
     systick_init();
+    gpio_init();
+    uart_init();
+    __asm volatile("cpsie i" ::: "memory");
+
+    (void)printf("MotorSense fw %s boot, SYSCLK=%lu\n", MOTORSENSE_FW_VERSION,
+                 (unsigned long)MOTORSENSE_SYSCLK_HZ);
+    uart_flush();
+
+#if defined(MOTORSENSE_TEST_HARDFAULT)
+    __asm volatile("udf #0");
+#endif
 
     uint32_t led_is_on = 0U;
     for (;;) {
         delay_ms(500U);
         led_is_on ^= 1U;
-        GPIOA_BSRR = led_is_on != 0U ? (1U << LED_PIN) : (1U << (LED_PIN + 16U));
+        GPIOA_BSRR = led_is_on != 0U ? (1UL << LED_PIN) : (1UL << (LED_PIN + 16U));
     }
 }
