@@ -28,15 +28,16 @@ Replay CWRU vibration through a Renode IIS3DWB-over-SPI model, run the bare-meta
 - [x] Freeze Phase 1 anomaly features and model as the initial firmware spec
 
 ## Phase 2 — Bare-metal firmware in Renode (weeks 1–6)
-Current slice: `fw/clock-uart` adds clock startup and diagnostic UART to the Phase 2 boot image.
+Current slice: `fw/vibration-sampling` adds CWRU replay and 12 kHz RMS parity to Renode; connected SPI and real DMA remain open.
 - [x] Linker script, startup code, vector table
 - [x] Blink a GPIO in Renode (via registers only)
 - [x] Clock: HSI16 PLL to 170 MHz, flash wait states, SysTick
 - [x] UART: interrupt-driven, ring buffer, printf
 - [x] HardFault handler that dumps registers
-- [ ] Timer-triggered sampling + DMA double buffer
-- [ ] SPI driver; Renode IIS3DWB model fed with CWRU data
-- [ ] Robot Framework test in Renode + GitHub Actions CI
+- [ ] Timer or data-ready-triggered sampling + DMA double buffer and half/full interrupts
+- [x] SPI register driver and Renode IIS3DWB register/FIFO replay shim fed with CWRU data (mock SPI window; not connected to a modeled STM32 SPI controller)
+- [x] Robot Framework Renode test checks CWRU window RMS against Python reference and checks the overrun counter
+- [ ] Replace mock SPI window with a connected SPI slave model; add GitHub Actions CI
 
 ## Phase 3 — Schematic and analog simulation (weeks 3–8) · KiCad/ngspice
 - [ ] Block diagram + power budget

@@ -52,7 +52,7 @@ Freeze this as the first MCU implementation target. It is a compact anomaly scor
 
 | Item | Frozen target |
 |---|---|
-| Input | 12 kHz vibration, shaft frequency in Hz supplied by configuration or a speed source |
+| Input | 12 kHz vibration after anti-aliased 9/20 resampling from IIS3DWB's fixed 26.667 kHz ODR; shaft frequency in Hz supplied by configuration or a speed source |
 | Window | 6,000 samples (0.5 s), non-overlapping, Hann window for envelope spectrum |
 | Carrier band | 2.5–3.5 kHz bandpass before envelope extraction |
 | Bearing orders | BPFI 5.4152, BPFO 3.5848, BSF 4.7135, FTF 0.39828 times shaft frequency |
@@ -65,7 +65,7 @@ Freeze this as the first MCU implementation target. It is a compact anomaly scor
 
 Feature-vector order is fixed as: `kurtosis`, `crest_factor`, `bpfi_energy_ratio`, `bpfo_energy_ratio`, `bsf_energy_ratio`, `ftf_energy_ratio`, `bpfi_peak_neighbor_db`, `bpfo_peak_neighbor_db`, `bsf_peak_neighbor_db`, `ftf_peak_neighbor_db`. The MAD scale is `max(1.4826 * MAD, 1e-8 * max(1, abs(median)))` for each feature. The total-energy denominator sums bins above DC through 500 Hz; each ratio numerator sums the first three harmonic bands.
 
-The Python reference uses a Hilbert analytic envelope plus an envelope spectrum. To bound MCU memory, the selected port target uses a 63-tap Q15 quadrature FIR for the Hilbert component and one Q15 envelope-spectrum RFFT per window. That FIR choice must be checked against the Python envelope on identical inputs. Keep kurtosis and crest factor in float32; Q15 applies only to the FFT transform. Convert FFT spectral values to float32 before computing normalized features and the anomaly score.
+The Python reference uses a Hilbert analytic envelope plus an envelope spectrum. Hardware acquisition runs the IIS3DWB at its fixed 26.667 kHz ODR and resamples with an anti-aliasing 9/20 rational filter before creating these 12 kHz windows (Decision 007). To bound MCU memory, the selected port target uses a 63-tap Q15 quadrature FIR for the Hilbert component and one Q15 envelope-spectrum RFFT per window. That FIR choice must be checked against the Python envelope on identical inputs. Keep kurtosis and crest factor in float32; Q15 applies only to the FFT transform. Convert FFT spectral values to float32 before computing normalized features and the anomaly score.
 
 ### Parity-test acceptance criterion
 
