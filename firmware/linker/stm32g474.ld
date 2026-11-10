@@ -113,6 +113,8 @@ SECTIONS
     {
         . = ALIGN(8);
         _heap_start = .;
+        end = _heap_start;
+        _end = _heap_start;
         . += _Min_Heap_Size;
         _heap_end = .;
     } > RAM

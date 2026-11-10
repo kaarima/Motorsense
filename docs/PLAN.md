@@ -28,12 +28,12 @@ Replay CWRU vibration through a Renode IIS3DWB-over-SPI model, run the bare-meta
 - [x] Freeze Phase 1 anomaly features and model as the initial firmware spec
 
 ## Phase 2 — Bare-metal firmware in Renode (weeks 1–6)
-Current slice: standalone STM32G474 boot, GPIOA/PA5 blink using SysTick, and a Renode LED smoke test on `fw/bare-metal-boot`.
-- [ ] Linker script, startup code, vector table
-- [ ] Blink a GPIO in Renode (via registers only)
-- [ ] Clock: PLL to 170 MHz, flash wait states, SysTick
-- [ ] UART: interrupt-driven, ring buffer, printf
-- [ ] HardFault handler that dumps registers
+Current slice: `fw/clock-uart` adds clock startup and diagnostic UART to the Phase 2 boot image.
+- [x] Linker script, startup code, vector table
+- [x] Blink a GPIO in Renode (via registers only)
+- [x] Clock: HSI16 PLL to 170 MHz, flash wait states, SysTick
+- [x] UART: interrupt-driven, ring buffer, printf
+- [x] HardFault handler that dumps registers
 - [ ] Timer-triggered sampling + DMA double buffer
 - [ ] SPI driver; Renode IIS3DWB model fed with CWRU data
 - [ ] Robot Framework test in Renode + GitHub Actions CI
